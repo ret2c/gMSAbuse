@@ -24,7 +24,7 @@ try {
     Write-Host "[!] Could not retrieve group memberships for current user $_" -ForegroundColor Red
 }
 
-Write-Host "[+] Starting gMSA enumeration"
+Write-Host "[+] Starting gMSA enumeration" -ForegroundColor Green
 
 $gmsaAccounts = Get-ADServiceAccount -Filter * -Properties memberOf
 $results = @()
@@ -57,28 +57,7 @@ foreach ($account in $gmsaAccounts) {
     $results += $accountInfo
 }
 
-$results | ForEach-Object {
-    Write-Host "Name: " -NoNewline
-    Write-Host $_.Name
-    
-    Write-Host "SamAccountName: " -NoNewline
-    Write-Host $_.SamAccountName
-    
-    Write-Host "DistinguishedName: " -NoNewline
-    Write-Host $_.DistinguishedName
-    
-    Write-Host "Enabled: " -NoNewline
-    if ($_.Enabled -eq $true) {
-        Write-Host "True" -ForegroundColor Green
-    } else {
-        Write-Host "False" -ForegroundColor Red
-    }
-    
-    Write-Host "MemberOf: " -NoNewline
-    Write-Host $_.MemberOf
-    
-    Write-Host ""
-}
+$results | Format-Table -AutoSize
 
 if ($results.Count -gt 0) {
     Write-Host "[+] Found $($results.Count) gMSA(s) with group memberships" -ForegroundColor Green
@@ -87,7 +66,7 @@ if ($results.Count -gt 0) {
     exit
 }
 
-Write-Host "[+] Checking for permissions on gMSA(s)"
+Write-Host "[+] Checking for permissions on gMSA accounts..." -ForegroundColor Green
 
 $schemaIDGUID = @{}
 Get-ADObject -SearchBase (Get-ADRootDSE).schemaNamingContext -LDAPFilter '(name=ms-ds-GroupMSAMembership)' -Properties name, schemaIDGUID |
@@ -99,7 +78,7 @@ foreach ($group in $userGroups) {
     $userIdentities += "$((Get-ADDomain).NetBIOSName)\$group"
 }
 
-Write-Host "[+] Checking for permissions that allow modification of gMSA attributes"
+Write-Host "[+] Checking for permissions that allow modification of gMSA attributes..." -ForegroundColor Green
 $vulnerableGMSAs = @()
 
 Set-Location ad:
@@ -150,7 +129,7 @@ foreach ($gmsa in $results) {
 Set-Location $env:USERPROFILE
 
 if ($vulnerableGMSAs.Count -gt 0) {
-    Write-Host "`n[!] Found $($vulnerableGMSAs.Count) gMSA(s) that the current user can potentially abuse!" -ForegroundColor Red
+    Write-Host "`n[!] Found $($vulnerableGMSAs.Count) gMSA(s) that the current user can potentially abuse!" -ForegroundColor Green
 } else {
-    Write-Host "`n[+] No gMSA(s) found that the current user can modify." -ForegroundColor Green
+    Write-Host "`n[+] No gMSA(s) found that the current user can modify." -ForegroundColor Red
 }
