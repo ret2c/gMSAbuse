@@ -24,7 +24,7 @@ try {
     Write-Host "[!] Could not retrieve group memberships for current user $_" -ForegroundColor Red
 }
 
-Write-Host "[+] Starting gMSA enumeration" -ForegroundColor Green
+Write-Host "`n[+] Starting gMSA enumeration" -ForegroundColor Green
 
 $gmsaAccounts = Get-ADServiceAccount -Filter * -Properties memberOf
 $results = @()
@@ -66,7 +66,7 @@ if ($results.Count -gt 0) {
     exit
 }
 
-Write-Host "[+] Checking for permissions on gMSA accounts..." -ForegroundColor Green
+Write-Host "`n[+] Checking for permissions on gMSA accounts..."
 
 $schemaIDGUID = @{}
 Get-ADObject -SearchBase (Get-ADRootDSE).schemaNamingContext -LDAPFilter '(name=ms-ds-GroupMSAMembership)' -Properties name, schemaIDGUID |
@@ -78,7 +78,7 @@ foreach ($group in $userGroups) {
     $userIdentities += "$((Get-ADDomain).NetBIOSName)\$group"
 }
 
-Write-Host "[+] Checking for permissions that allow modification of gMSA attributes..." -ForegroundColor Green
+Write-Host "[+] Checking for permissions that allow modification of gMSA attributes..."
 $vulnerableGMSAs = @()
 
 Set-Location ad:
@@ -119,7 +119,7 @@ foreach ($gmsa in $results) {
     
     if ($hasPermission) {
         $vulnerableGMSAs += $gmsa
-        Write-Host "`n[!] VULNERABLE: Current user can modify attributes on gMSA: $($gmsa.Name)" -ForegroundColor Red
+        Write-Host "`n[!] VULNERABLE: Current user can modify attributes on gMSA: $($gmsa.Name)" -ForegroundColor Green
         foreach ($detail in $permissionDetails) {
             Write-Host "  $detail" -ForegroundColor Yellow
         }
